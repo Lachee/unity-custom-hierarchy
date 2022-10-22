@@ -133,6 +133,12 @@ namespace Febucci.HierarchyData
 
         #endregion
 
+        [ContextMenu("Use Profile")]
+        public void MakeActive()
+        {
+            HierarchyDrawer.MakeActive(this);
+        }
+
         private void OnValidate()
         {
             HierarchyDrawer.Initialize();

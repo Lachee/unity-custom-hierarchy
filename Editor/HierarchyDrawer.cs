@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -187,6 +188,7 @@ namespace Febucci.HierarchyData
             }
         }
 
+
         static bool SelectData()
         {
             var loaded = Load();
@@ -223,18 +225,29 @@ namespace Febucci.HierarchyData
 
         #region Initialization/Helpers
 
-        private const string fileName = "HierarchyData";
+        private const string ProfilePreferencePath = "Library/CustomHierarchyProfile";
+        private const string DefaultAssetName = "HierarchyData";
         static HierarchyData Load()
         {
-            var result = EditorGUIUtility.Load($"Febucci/{fileName}.asset") as HierarchyData;
-            if (result != null)
-                return result;
+            string preferedGUID = GetPreferedHierarchyDataGUID();
+            if (preferedGUID == null)
+            {
+                var result = EditorGUIUtility.Load($"Febucci/{DefaultAssetName}.asset") as HierarchyData;
+                if (result != null)
+                {
+                    SetPreferedHierarchyData(result);
+                    return result;
+                }
 
-            var guids = UnityEditor.AssetDatabase.FindAssets("t:" + nameof(HierarchyData));
-            if (guids.Length == 0)
-                return null;
+                var guids = UnityEditor.AssetDatabase.FindAssets("t:" + nameof(HierarchyData));
+                if (guids.Length == 0)
+                    return null;
 
-            return AssetDatabase.LoadAssetAtPath<HierarchyData>(AssetDatabase.GUIDToAssetPath(guids[0]));
+                preferedGUID = guids[0];
+                SetPreferedHierarchyDataGUID(guids[0]);
+            }
+
+            return AssetDatabase.LoadAssetAtPath<HierarchyData>(AssetDatabase.GUIDToAssetPath(preferedGUID));
         }
 
         /// <summary>
@@ -263,7 +276,7 @@ namespace Febucci.HierarchyData
             {
                 //Creates asset
                 var asset = ScriptableObject.CreateInstance<HierarchyData>();
-                AssetDatabase.CreateAsset(asset, path + $"/{fileName}.asset");
+                AssetDatabase.CreateAsset(asset, path + $"/{DefaultAssetName}.asset");
             }
             catch (Exception e)
             {
@@ -330,6 +343,56 @@ namespace Febucci.HierarchyData
             EditorApplication.RepaintHierarchyWindow();
         }
 
+        /// <summary>
+        /// Makes the set hierarchy data active
+        /// </summary>
+        /// <param name="data"></param>
+        /// <returns></returns>
+        public static bool MakeActive(HierarchyData data)
+        {
+            if (!SetPreferedHierarchyData(data))
+                return false;
+
+            Initialize();
+            return true;
+        }
+
+        /// <summary>
+        /// Gets the prefered path to the hierarchy data file
+        /// </summary>
+        /// <returns></returns>
+        static string GetPreferedHierarchyDataGUID()
+        {
+            if (!File.Exists(ProfilePreferencePath))
+                return null;
+
+            string guid = System.IO.File.ReadAllText(ProfilePreferencePath);
+            return guid;
+        }
+
+        /// <summary>
+        /// Sets the prefered path to the hierarchy data file
+        /// </summary>
+        /// <param name="path"></param>
+        static bool SetPreferedHierarchyDataGUID(string guid)
+        {
+            File.WriteAllText(ProfilePreferencePath, guid);
+            return true;
+        }
+        
+        /// <summary>
+        /// Sets the prefered path to the hierarchy data file
+        /// </summary>
+        /// <param name="data"></param>
+        /// <returns></returns>
+        static bool SetPreferedHierarchyData(HierarchyData data)
+        {
+            if (AssetDatabase.TryGetGUIDAndLocalFileIdentifier(data, out string guid, out long _))
+            {
+                return SetPreferedHierarchyDataGUID(guid);
+            }
+            return false;
+        }
         #endregion
 
         /// <summary>
